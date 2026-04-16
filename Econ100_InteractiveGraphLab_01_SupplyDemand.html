@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Interactive Graph Lab 1: Supply and Demand</title>
+<style>
+:root{
+  --green:#008345;
+  --green-light:#e6f4ed;
+  --gold:#c8960c;
+  --gold-light:#fdf6e3;
+  --red:#c0392b;
+  --red-light:#fdf0ee;
+  --blue:#1a5cb5;
+  --blue-light:#eaf0fb;
+  --border:#d0d7de;
+  --card:#f6f8fa;
+  --text:#1a1a1a;
+  --muted:#555;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{font-family:'Georgia',serif; background:#fafafa; color:var(--text); max-width:960px; margin:0 auto; padding:1.25rem;}
+h1{font-size:1.55rem; font-weight:700; margin-bottom:.25rem; color:var(--green);}
+.subtitle{font-size:.95rem; color:var(--muted); margin-bottom:1rem;}
+
+/* scenario selector */
+.scenario-bar{display:flex; gap:.5rem; margin-bottom:1rem; flex-wrap:wrap; align-items:center;}
+.scenario-bar span{font-weight:700; font-size:.9rem; color:var(--muted);}
+.sc-btn{border:2px solid var(--border); border-radius:8px; padding:.4rem .9rem; background:#fff; cursor:pointer; font-size:.9rem; font-family:inherit; transition:all .15s;}
+.sc-btn.active{border-color:var(--green); background:var(--green-light); color:var(--green); font-weight:700;}
+.sc-btn:hover{border-color:var(--green);}
+
+/* step card */
+.step-card{border:1px solid var(--border); border-left:5px solid var(--green); border-radius:10px; background:#fff; padding:1rem 1.1rem; margin-bottom:1rem;}
+.step-label{font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--green); margin-bottom:.3rem;}
+.step-title{font-size:1.05rem; font-weight:700; margin-bottom:.3rem;}
+.step-body{font-size:.93rem; color:var(--muted); line-height:1.55;}
+.step-nav{display:flex; gap:.6rem; margin-top:.75rem; align-items:center;}
+.btn{border:2px solid var(--green); border-radius:8px; padding:.4rem .9rem; background:var(--green); color:#fff; cursor:pointer; font-size:.9rem; font-family:inherit; font-weight:700; transition:all .15s;}
+.btn:hover{background:#006835;}
+.btn-ghost{background:#fff; color:var(--green);}
+.btn-ghost:hover{background:var(--green-light);}
+.btn:disabled{opacity:.4; cursor:not-allowed;}
+
+/* layout */
+.panel{display:grid; grid-template-columns:1fr; gap:1rem;}
+@media(min-width:820px){.panel{grid-template-columns:1.3fr .7fr; align-items:start;}}
+
+/* svg */
+svg{width:100%; height:auto; background:#fff; border:1px solid var(--border); border-radius:12px; display:block;}
+
+/* controls */
+.controls{border:1px solid var(--border); border-radius:12px; padding:1rem; background:#fff;}
+.ctrl-group{margin-bottom:1rem;}
+.ctrl-label{display:block; font-size:.88rem; font-weight:700; margin-bottom:.3rem; color:var(--text);}
+.ctrl-hint{font-size:.82rem; color:var(--muted); margin-top:.15rem;}
+input[type=range]{width:100%; accent-color:var(--green); height:6px; margin:.25rem 0;}
+input[type=range]:disabled{opacity:.35;}
+
+/* feedback */
+.feedback-box{border:1px solid var(--border); border-radius:10px; padding:.8rem 1rem; background:#fff; margin-top:.75rem; min-height:3rem;}
+.feedback-box.correct{border-color:var(--green); background:var(--green-light);}
+.feedback-box.info{border-color:var(--blue); background:var(--blue-light);}
+.feedback-box.warn{border-color:var(--gold); background:var(--gold-light);}
+.readout{font-family:'Courier New',monospace; font-size:.88rem; color:var(--text); margin-bottom:.4rem;}
+.msg{font-size:.9rem; line-height:1.5;}
+
+/* legend */
+.legend{display:flex; gap:1rem; flex-wrap:wrap; margin-top:.5rem; font-size:.88rem;}
+.key{display:flex; align-items:center; gap:.35rem;}
+.sw{width:22px; height:4px; border-radius:2px;}
+
+/* ref point legend */
+.ref-legend{display:flex; gap:.75rem; flex-wrap:wrap; margin-top:.5rem; font-size:.82rem;}
+.ref-key{display:flex; align-items:center; gap:.3rem; background:#f6f8fa; border:1px solid var(--border); border-radius:6px; padding:.2rem .5rem;}
+.ref-dot{width:10px; height:10px; border-radius:50%; background:#aaa;}
+
+.note{border-left:4px solid var(--gold); padding:.5rem .75rem; background:var(--gold-light); border-radius:8px; font-size:.88rem; margin-top:.75rem; line-height:1.5;}
+</style>
+</head>
+<body>
+
+<h1>Interactive Graph Lab 1: Supply &amp; Demand</h1>
+<p class="subtitle">Shift curves to trace how markets respond to real economic events.</p>
+
+<!-- Scenario selector -->
+<div class="scenario-bar">
+  <span>Scenario:</span>
+  <button class="sc-btn active" onclick="loadScenario(0)">A — Input costs rise</button>
+  <button class="sc-btn" onclick="loadScenario(1)">B — Consumer incomes rise</button>
+</div>
+
+<!-- Step card -->
+<div class="step-card" id="stepCard">
+  <div class="step-label" id="stepLabel">Step 1 of 3</div>
+  <div class="step-title" id="stepTitle"></div>
+  <div class="step-body" id="stepBody"></div>
+  <div class="step-nav">
+    <button class="btn btn-ghost" id="prevBtn" onclick="changeStep(-1)" disabled>← Back</button>
+    <button class="btn" id="nextBtn" onclick="changeStep(1)">Next step →</button>
+    <button class="btn btn-ghost" onclick="resetAll()" style="margin-left:auto;">Reset</button>
+  </div>
+</div>
+
+<div class="panel">
+  <!-- Graph -->
+  <div>
+    <svg id="sdSvg" viewBox="0 0 620 440" role="img" aria-label="Supply and demand graph">
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#111"/>
+        </marker>
+      </defs>
+
+      <!-- grid -->
+      <g id="gridLines" stroke="#eee" stroke-width="1"></g>
+
+      <!-- axis labels background -->
+      <rect x="0" y="0" width="620" height="440" fill="white"/>
+
+      <!-- background reference curves (ghost) -->
+      <g id="bgCurves" opacity="0.18" stroke="#555" stroke-width="2.5" fill="none">
+        <!-- drawn by JS -->
+      </g>
+
+      <!-- background reference points -->
+      <g id="bgPoints"></g>
+
+      <!-- live curves -->
+      <path id="dCurve" d="" stroke="#1a5cb5" stroke-width="3.5" fill="none"/>
+      <path id="sCurve" d="" stroke="#c0392b" stroke-width="3.5" fill="none" stroke-dasharray="10 7"/>
+
+      <!-- equilibrium dashed lines -->
+      <line id="eqVLine" x1="0" y1="0" x2="0" y2="0" stroke="#555" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.6"/>
+      <line id="eqHLine" x1="70" y1="0" x2="0" y2="0" stroke="#555" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.6"/>
+
+      <!-- axes -->
+      <line x1="70" y1="30" x2="70" y2="370" stroke="#111" stroke-width="3"/>
+      <line x1="70" y1="370" x2="580" y2="370" stroke="#111" stroke-width="3"/>
+      <polygon points="70,18 63,38 77,38" fill="#111"/>
+      <polygon points="592,370 572,363 572,377" fill="#111"/>
+
+      <!-- axis tick labels drawn by JS -->
+      <g id="tickLabels" font-size="12" fill="#555" font-family="Georgia,serif"></g>
+
+      <!-- axis titles -->
+      <text x="14" y="200" font-size="14" fill="#111" font-family="Georgia,serif" text-anchor="middle" transform="rotate(-90 14 200)">Price ($)</text>
+      <text x="325" y="420" font-size="14" fill="#111" font-family="Georgia,serif" text-anchor="middle">Quantity (units)</text>
+
+      <!-- curve labels -->
+      <text id="dLabel" x="0" y="0" font-size="14" fill="#1a5cb5" font-family="Georgia,serif" font-weight="700">D</text>
+      <text id="sLabel" x="0" y="0" font-size="14" fill="#c0392b" font-family="Georgia,serif" font-weight="700">S</text>
+
+      <!-- equilibrium point -->
+      <circle id="eqDot" cx="0" cy="0" r="6" fill="#111"/>
+      <text id="eqText" x="0" y="0" font-size="12" fill="#111" font-family="Georgia,serif"></text>
+    </svg>
+
+    <div class="legend">
+      <div class="key"><div class="sw" style="background:#1a5cb5;"></div>Demand</div>
+      <div class="key"><div class="sw" style="background:#c0392b; background: repeating-linear-gradient(90deg,#c0392b 0 10px,transparent 10px 17px);"></div>Supply</div>
+    </div>
+
+    <div class="ref-legend" id="refLegend"></div>
+
+    <div class="note" id="conceptNote" style="display:none;"></div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="ctrl-group">
+      <label class="ctrl-label" for="dSlider">Demand shifter</label>
+      <input type="range" id="dSlider" min="-80" max="80" step="1" value="0" oninput="onSlider()"/>
+      <div class="ctrl-hint" id="dHint">← lower demand &nbsp;|&nbsp; higher demand →</div>
+    </div>
+    <div class="ctrl-group">
+      <label class="ctrl-label" for="sSlider">Supply shifter</label>
+      <input type="range" id="sSlider" min="-80" max="80" step="1" value="0" oninput="onSlider()"/>
+      <div class="ctrl-hint" id="sHint">← lower supply &nbsp;|&nbsp; higher supply →</div>
+    </div>
+
+    <div class="feedback-box" id="feedbackBox">
+      <div class="readout" id="readout">P* = $— &nbsp;|&nbsp; Q* = —</div>
+      <div class="msg" id="msgText">Adjust the sliders to begin the scenario.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+// ── Coordinate system ──────────────────────────────────────────────────────
+// Model: Q in [0,400], P in [0,100]
+// Pixel: x from 70..570 (Q), y from 30..370 (P, inverted)
+
+const X0=70, X1=570, Y0=30, Y1=370;
+
+function xP(Q){ return X0 + (Q/400)*(X1-X0); }
+function yP(P){ return Y1 - (P/100)*(Y1-Y0); }
+function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+
+// ── Baseline curve parameters ──────────────────────────────────────────────
+// Demand: P = aD - bD*Q  (aD=90, bD=0.18 → eq at Q=250 when S: P=20+0.28Q)
+// Supply: P = aS + bS*Q  (aS=20, bS=0.28)
+// Equilibrium: 90 - 0.18Q = 20 + 0.28Q → 70 = 0.46Q → Q≈152, P≈62 ... let's tune
+// Target: baseline eq around Q=200, P=50
+// 90-bD*200=50 → bD=0.2
+// 20+bS*200=50 → bS=0.15
+const bD=0.2, bS=0.15;
+const aD0=90, aS0=20;
+
+// Reference points (model coords) — computed from baseline
+// A = baseline equilibrium
+// B = after supply shift left (scenario 1 target)
+// C = after demand shift right (scenario 2 target)
+// D = long-run return / second adjustment
+function solveEq(aD, aS){
+  const Q = (aD - aS) / (bD + bS);
+  const P = aS + bS*Q;
+  return { Q: clamp(Q,0,400), P: clamp(P,0,100) };
+}
+
+const refA = solveEq(aD0, aS0);                  // baseline: A
+const refB = solveEq(aD0, aS0+18);               // supply shifts left (costs up): B
+const refB2 = solveEq(aD0-12, aS0+18);           // demand also softens slightly: partial adjust
+const refC = solveEq(aD0+20, aS0);               // demand shifts right (income up): C
+const refC2 = solveEq(aD0+20, aS0+12);           // supply adjusts up (LR): D
+
+// ── Scenarios ──────────────────────────────────────────────────────────────
+const scenarios = [
+  {
+    name:"A — Input costs rise",
+    supplyLocked: false, demandLocked: true,
+    steps:[
+      {
+        label:"Step 1 of 3 — Starting equilibrium",
+        title:"The market starts at equilibrium",
+        body:"The market is clearing at point A. Quantity demanded equals quantity supplied. Notice the price level and quantity at the equilibrium point. This is our baseline.",
+        dVal:0, sVal:0,
+        dLock:true, sLock:true,
+        targetRef:"A",
+        conceptNote:null,
+        feedbackNote:"You're at equilibrium A. Quantity demanded = quantity supplied. No pressure on price."
+      },
+      {
+        label:"Step 2 of 3 — Input costs rise",
+        title:"Scenario: Input costs rise for all producers",
+        body:"The price of key inputs (labor, raw materials, energy) rises across the industry. This makes production more expensive at every output level. Move the Supply slider left to show what happens.",
+        dVal:0, sVal:null, // null = student moves
+        dLock:true, sLock:false,
+        targetRef:"B",
+        conceptNote:"A rise in input costs is a supply shifter. It shifts the supply curve left (less supplied at every price). The demand curve does not move — consumer preferences and income haven't changed.",
+        feedbackNote:null
+      },
+      {
+        label:"Step 3 of 3 — Long-run adjustment",
+        title:"How does the market respond over time?",
+        body:"Higher prices signal producers that this market is profitable. Over time, some producers adapt (find cheaper inputs, improve efficiency). New producers may also enter. Gradually, supply begins to recover. Move the Supply slider slightly right from where it is — but not all the way back.",
+        dVal:0, sVal:null,
+        dLock:true, sLock:false,
+        targetRef:"A",
+        conceptNote:"In the long run, markets tend to self-correct. High prices attract supply. The equilibrium price falls back toward the original level, though it may settle slightly above if input costs remain higher.",
+        feedbackNote:null
+      }
+    ]
+  },
+  {
+    name:"B — Consumer incomes rise",
+    supplyLocked: true, demandLocked: false,
+    steps:[
+      {
+        label:"Step 1 of 3 — Starting equilibrium",
+        title:"The market starts at equilibrium",
+        body:"The market is clearing at point A. This is our baseline before any change in consumer income.",
+        dVal:0, sVal:0,
+        dLock:true, sLock:true,
+        targetRef:"A",
+        conceptNote:null,
+        feedbackNote:"You're at equilibrium A. The market is balanced."
+      },
+      {
+        label:"Step 2 of 3 — Consumer incomes rise",
+        title:"Scenario: Consumer incomes rise",
+        body:"Assume this is a normal good. When consumer incomes rise, households can afford more at every price — demand increases. Move the Demand slider right to show what happens to the equilibrium.",
+        dVal:null, sVal:0,
+        dLock:false, sLock:true,
+        targetRef:"C",
+        conceptNote:"Rising income is a demand shifter for normal goods. The demand curve shifts right: more is demanded at every price. The supply curve does not move — production costs haven't changed.",
+        feedbackNote:null
+      },
+      {
+        label:"Step 3 of 3 — Producers respond",
+        title:"Higher prices attract more production",
+        body:"The new higher price is a profit signal. Existing producers expand output. New firms may enter. Over time, supply increases. Move the Supply slider right to see the long-run adjustment — the price falls back somewhat but quantity settles higher.",
+        dVal:null, sVal:null,
+        dLock:false, sLock:false,
+        targetRef:"D",
+        conceptNote:"This is the long-run supply response. As producers enter and expand, supply increases, pushing price back down. The new long-run equilibrium has higher quantity but a price closer to the original.",
+        feedbackNote:null
+      }
+    ]
+  }
+];
+
+// ── State ──────────────────────────────────────────────────────────────────
+let scenIdx = 0;
+let stepIdx = 0;
+
+const dSlider = document.getElementById('dSlider');
+const sSlider = document.getElementById('sSlider');
+const readout = document.getElementById('readout');
+const msgText = document.getElementById('msgText');
+const feedbackBox = document.getElementById('feedbackBox');
+const stepLabel = document.getElementById('stepLabel');
+const stepTitle = document.getElementById('stepTitle');
+const stepBody = document.getElementById('stepBody');
+const conceptNote = document.getElementById('conceptNote');
+const refLegend = document.getElementById('refLegend');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+
+// SVG elements
+const svg = document.getElementById('sdSvg');
+const dCurve = document.getElementById('dCurve');
+const sCurve = document.getElementById('sCurve');
+const eqDot = document.getElementById('eqDot');
+const eqText = document.getElementById('eqText');
+const eqVLine = document.getElementById('eqVLine');
+const eqHLine = document.getElementById('eqHLine');
+const dLabel = document.getElementById('dLabel');
+const sLabel = document.getElementById('sLabel');
+const bgCurves = document.getElementById('bgCurves');
+const bgPoints = document.getElementById('bgPoints');
+const tickLabels = document.getElementById('tickLabels');
+const gridLines = document.getElementById('gridLines');
+
+// ── Draw axes ──────────────────────────────────────────────────────────────
+function drawAxes(){
+  // grid + ticks Q
+  let g='', t='';
+  const Qvals=[0,100,200,300,400];
+  Qvals.forEach(Q=>{
+    const x=xP(Q);
+    g+=`<line x1="${x}" y1="${Y0}" x2="${x}" y2="${Y1}" stroke="#eee" stroke-width="1"/>`;
+    t+=`<text x="${x}" y="${Y1+16}" text-anchor="middle">${Q}</text>`;
+  });
+  const Pvals=[0,20,40,60,80,100];
+  Pvals.forEach(P=>{
+    const y=yP(P);
+    g+=`<line x1="${X0}" y1="${y}" x2="${X1}" y2="${y}" stroke="#eee" stroke-width="1"/>`;
+    t+=`<text x="${X0-8}" y="${y+4}" text-anchor="end">$${P}</text>`;
+  });
+  gridLines.innerHTML=g;
+  tickLabels.innerHTML=t;
+}
+
+// ── Draw background reference curves ──────────────────────────────────────
+function drawBgCurves(){
+  // Show baseline D and S curves always, plus scenario-specific shifted curves
+  const sc = scenarios[scenIdx];
+  let html='';
+
+  // Baseline D
+  const dP0=aD0-bD*0, dP400=aD0-bD*400;
+  html+=`<path d="M ${xP(0)} ${yP(dP0)} L ${xP(400)} ${yP(dP400)}" stroke="#1a5cb5" stroke-dasharray="6 5"/>`;
+
+  // Baseline S
+  const sP0=aS0+bS*0, sP400=aS0+bS*400;
+  html+=`<path d="M ${xP(0)} ${yP(sP0)} L ${xP(400)} ${yP(sP400)}" stroke="#c0392b" stroke-dasharray="6 5"/>`;
+
+  bgCurves.innerHTML=html;
+}
+
+// ── Draw reference points ──────────────────────────────────────────────────
+const refDefs = {
+  A:{ ref:refA,  color:'#333',   label:'A', desc:'Baseline equilibrium' },
+  B:{ ref:refB,  color:'#c0392b',label:'B', desc:'After supply decreases' },
+  C:{ ref:refC,  color:'#1a5cb5',label:'C', desc:'After demand increases' },
+  D:{ ref:refC2, color:'#008345',label:'D', desc:'Long-run adjustment' },
+};
+
+function drawBgPoints(){
+  let html='';
+  const showPoints = scenIdx===0 ? ['A','B'] : ['A','C','D'];
+
+  showPoints.forEach(k=>{
+    const d=refDefs[k];
+    const x=xP(d.ref.Q), y=yP(d.ref.P);
+    html+=`<circle cx="${x}" cy="${y}" r="7" fill="${d.color}" fill-opacity="0.25" stroke="${d.color}" stroke-width="2"/>`;
+    html+=`<text x="${x+10}" y="${y-8}" font-size="13" fill="${d.color}" font-family="Georgia,serif" font-weight="700" opacity="0.8">${k}</text>`;
+  });
+  bgPoints.innerHTML=html;
+
+  // Legend
+  let leg='';
+  showPoints.forEach(k=>{
+    const d=refDefs[k];
+    const r=d.ref;
+    leg+=`<div class="ref-key"><div class="ref-dot" style="background:${d.color};"></div><strong>${k}</strong>: ${d.desc} (P=$${r.P.toFixed(0)}, Q=${r.Q.toFixed(0)})</div>`;
+  });
+  refLegend.innerHTML=leg;
+}
+
+// ── Main update ──────────────────────────────────────────────────────────
+function update(){
+  const d = parseFloat(dSlider.value);
+  const s = parseFloat(sSlider.value);
+  const aD = aD0 + d;
+  const aS = aS0 - s; // right = more supply = lower cost intercept
+
+  // Demand curve
+  const dp0=aD-bD*0, dp400=aD-bD*400;
+  dCurve.setAttribute('d',`M ${xP(0)} ${yP(dp0)} L ${xP(400)} ${yP(dp400)}`);
+  dLabel.setAttribute('x', xP(350));
+  dLabel.setAttribute('y', yP(aD-bD*350)-8);
+
+  // Supply curve
+  const sp0=aS+bS*0, sp400=aS+bS*400;
+  sCurve.setAttribute('d',`M ${xP(0)} ${yP(sp0)} L ${xP(400)} ${yP(sp400)}`);
+  sLabel.setAttribute('x', xP(350));
+  sLabel.setAttribute('y', yP(aS+bS*350)+18);
+
+  // Equilibrium
+  const eq = solveEq(aD, aS);
+  const ex=xP(eq.Q), ey=yP(eq.P);
+  eqDot.setAttribute('cx',ex);
+  eqDot.setAttribute('cy',ey);
+  eqText.setAttribute('x',ex+9);
+  eqText.setAttribute('y',ey-9);
+  eqText.textContent=`P=$${eq.P.toFixed(0)}, Q=${eq.Q.toFixed(0)}`;
+
+  // Dashed reference lines to axes
+  eqVLine.setAttribute('x1',ex); eqVLine.setAttribute('x2',ex);
+  eqVLine.setAttribute('y1',ey); eqVLine.setAttribute('y2',Y1);
+  eqHLine.setAttribute('x1',X0); eqHLine.setAttribute('x2',ex);
+  eqHLine.setAttribute('y1',ey); eqHLine.setAttribute('y2',ey);
+
+  readout.textContent=`P* = $${eq.P.toFixed(1)}  |  Q* = ${eq.Q.toFixed(0)} units`;
+
+  // Feedback based on current step
+  const step = scenarios[scenIdx].steps[stepIdx];
+  giveFeedback(eq, step, d, s);
+}
+
+function giveFeedback(eq, step, d, s){
+  const sc = scenarios[scenIdx];
+  const atStart = (Math.abs(d)<5 && Math.abs(s)<5);
+
+  // Check proximity to target reference point
+  let nearRef = null;
+  const refKeys = scenIdx===0 ? ['A','B'] : ['A','C','D'];
+  refKeys.forEach(k=>{
+    const r=refDefs[k].ref;
+    if(Math.abs(eq.Q-r.Q)<15 && Math.abs(eq.P-r.P)<5) nearRef=k;
+  });
+
+  if(stepIdx===0){
+    feedbackBox.className='feedback-box info';
+    msgText.textContent=step.feedbackNote;
+    return;
+  }
+
+  if(atStart && stepIdx>0){
+    feedbackBox.className='feedback-box warn';
+    msgText.textContent="Move the slider to see what happens in this scenario.";
+    return;
+  }
+
+  // Scenario 0, step 1: expect supply to move left (s < 0)
+  if(scenIdx===0 && stepIdx===1){
+    if(s < -20){
+      feedbackBox.className='feedback-box correct';
+      msgText.textContent=`Supply shifted left. New equilibrium: P=$${eq.P.toFixed(0)}, Q=${eq.Q.toFixed(0)}. Price is higher and quantity is lower — this is the classic response to a cost increase. You're near reference point B.`;
+    } else {
+      feedbackBox.className='feedback-box info';
+      msgText.textContent="Move the Supply slider to the left — higher input costs reduce supply at every price.";
+    }
+    return;
+  }
+  if(scenIdx===0 && stepIdx===2){
+    if(s > -40 && s < -5){
+      feedbackBox.className='feedback-box correct';
+      msgText.textContent=`Good. Supply is recovering. The price is falling back from the peak but may remain above the original — higher input costs are still somewhat present. New eq: P=$${eq.P.toFixed(0)}, Q=${eq.Q.toFixed(0)}.`;
+    } else if(s >= -5){
+      feedbackBox.className='feedback-box info';
+      msgText.textContent="Move supply left first to represent the cost increase, then adjust right slightly for the partial recovery.";
+    } else {
+      feedbackBox.className='feedback-box info';
+      msgText.textContent="Move the Supply slider slightly right from where it is to model the partial long-run recovery.";
+    }
+    return;
+  }
+  // Scenario 1, step 1: expect demand to move right (d > 0)
+  if(scenIdx===1 && stepIdx===1){
+    if(d > 20){
+      feedbackBox.className='feedback-box correct';
+      msgText.textContent=`Demand shifted right. New equilibrium: P=$${eq.P.toFixed(0)}, Q=${eq.Q.toFixed(0)}. Both price and quantity rose — this is the normal response to rising consumer income for a normal good. You're near reference point C.`;
+    } else {
+      feedbackBox.className='feedback-box info';
+      msgText.textContent="Move the Demand slider to the right — higher income increases demand for normal goods at every price.";
+    }
+    return;
+  }
+  if(scenIdx===1 && stepIdx===2){
+    if(d > 20 && s > 15){
+      feedbackBox.className='feedback-box correct';
+      msgText.textContent=`Great. Demand is up AND supply responded. The new long-run equilibrium has higher quantity but a price closer to the original. P=$${eq.P.toFixed(0)}, Q=${eq.Q.toFixed(0)}. This is point D — the long-run result.`;
+    } else if(d > 20){
+      feedbackBox.className='feedback-box info';
+      msgText.textContent=`Demand is shifted right (P=$${eq.P.toFixed(0)}, Q=${eq.Q.toFixed(0)}). Now move Supply right to show producers entering and expanding — bringing the price back down.`;
+    } else {
+      feedbackBox.className='feedback-box info';
+      msgText.textContent="First make sure demand is shifted right, then also shift supply right to show the long-run response.";
+    }
+    return;
+  }
+
+  feedbackBox.className='feedback-box info';
+  msgText.textContent=`Current equilibrium: P=$${eq.P.toFixed(0)}, Q=${eq.Q.toFixed(0)}.`;
+}
+
+// ── Step navigation ────────────────────────────────────────────────────────
+function loadStep(){
+  const sc = scenarios[scenIdx];
+  const step = sc.steps[stepIdx];
+
+  stepLabel.textContent = step.label;
+  stepTitle.textContent = step.title;
+  stepBody.textContent = step.body;
+
+  prevBtn.disabled = stepIdx === 0;
+  nextBtn.textContent = stepIdx === sc.steps.length-1 ? 'Restart ↺' : 'Next step →';
+
+  // Lock sliders per step
+  dSlider.disabled = step.dLock;
+  sSlider.disabled = step.sLock;
+
+  // Reset sliders to prescribed values
+  if(step.dVal !== null) dSlider.value = step.dVal;
+  if(step.sVal !== null) sSlider.value = step.sVal;
+  // If step.dVal or sVal is null, keep current slider position
+  if(step.dVal !== null && step.sVal !== null){
+    // both prescribed — reset to those values
+    dSlider.value = step.dVal;
+    sSlider.value = step.sVal;
+  }
+
+  // Concept note
+  if(step.conceptNote){
+    conceptNote.textContent = step.conceptNote;
+    conceptNote.style.display='block';
+  } else {
+    conceptNote.style.display='none';
+  }
+
+  update();
+}
+
+window.changeStep = function(dir){
+  const sc = scenarios[scenIdx];
+  if(dir===1 && stepIdx === sc.steps.length-1){
+    resetAll(); return;
+  }
+  stepIdx = clamp(stepIdx+dir, 0, sc.steps.length-1);
+  loadStep();
+};
+
+window.loadScenario = function(idx){
+  scenIdx = idx;
+  stepIdx = 0;
+  document.querySelectorAll('.sc-btn').forEach((b,i)=>{
+    b.classList.toggle('active', i===idx);
+  });
+  dSlider.value=0; sSlider.value=0;
+  drawBgCurves();
+  drawBgPoints();
+  loadStep();
+};
+
+window.onSlider = function(){ update(); };
+
+window.resetAll = function(){
+  stepIdx=0;
+  dSlider.value=0; sSlider.value=0;
+  drawBgCurves();
+  drawBgPoints();
+  loadStep();
+};
+
+// ── Init ──────────────────────────────────────────────────────────────────
+drawAxes();
+drawBgCurves();
+drawBgPoints();
+loadStep();
+
+})();
+</script>
+
+<p style="font-size:.82rem; color:#888; margin-top:1rem; border-top:1px solid #eee; padding-top:.75rem;">
+If interactivity does not work inside Canvas, host this HTML file externally (Google Drive publish, OneDrive, GitHub Pages, or district web space) and embed using an iframe in a Canvas Page.
+</p>
+</body>
+</html>
