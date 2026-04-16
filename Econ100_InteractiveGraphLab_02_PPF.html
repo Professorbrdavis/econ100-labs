@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Interactive Graph Lab 2: Production Possibilities Frontier</title>
+<style>
+:root{
+  --green:#008345;
+  --green-light:#e6f4ed;
+  --gold:#c8960c;
+  --gold-light:#fdf6e3;
+  --red:#c0392b;
+  --red-light:#fdf0ee;
+  --blue:#1a5cb5;
+  --blue-light:#eaf0fb;
+  --border:#d0d7de;
+  --card:#f6f8fa;
+  --text:#1a1a1a;
+  --muted:#555;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{font-family:'Georgia',serif; background:#fafafa; color:var(--text); max-width:960px; margin:0 auto; padding:1.25rem;}
+h1{font-size:1.55rem; font-weight:700; margin-bottom:.25rem; color:var(--green);}
+.subtitle{font-size:.95rem; color:var(--muted); margin-bottom:1rem;}
+.scenario-bar{display:flex; gap:.5rem; margin-bottom:1rem; flex-wrap:wrap; align-items:center;}
+.scenario-bar span{font-weight:700; font-size:.9rem; color:var(--muted);}
+.sc-btn{border:2px solid var(--border); border-radius:8px; padding:.4rem .9rem; background:#fff; cursor:pointer; font-size:.9rem; font-family:inherit; transition:all .15s;}
+.sc-btn.active{border-color:var(--green); background:var(--green-light); color:var(--green); font-weight:700;}
+.sc-btn:hover{border-color:var(--green);}
+.step-card{border:1px solid var(--border); border-left:5px solid var(--green); border-radius:10px; background:#fff; padding:1rem 1.1rem; margin-bottom:1rem;}
+.step-label{font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--green); margin-bottom:.3rem;}
+.step-title{font-size:1.05rem; font-weight:700; margin-bottom:.3rem;}
+.step-body{font-size:.93rem; color:var(--muted); line-height:1.55;}
+.step-nav{display:flex; gap:.6rem; margin-top:.75rem; align-items:center;}
+.btn{border:2px solid var(--green); border-radius:8px; padding:.4rem .9rem; background:var(--green); color:#fff; cursor:pointer; font-size:.9rem; font-family:inherit; font-weight:700; transition:all .15s;}
+.btn:hover{background:#006835;}
+.btn-ghost{background:#fff; color:var(--green);}
+.btn-ghost:hover{background:var(--green-light);}
+.btn:disabled{opacity:.4; cursor:not-allowed;}
+.panel{display:grid; grid-template-columns:1fr; gap:1rem;}
+@media(min-width:820px){.panel{grid-template-columns:1.3fr .7fr; align-items:start;}}
+svg{width:100%; height:auto; background:#fff; border:1px solid var(--border); border-radius:12px; display:block;}
+.controls{border:1px solid var(--border); border-radius:12px; padding:1rem; background:#fff;}
+.ctrl-group{margin-bottom:1rem;}
+.ctrl-label{display:block; font-size:.88rem; font-weight:700; margin-bottom:.3rem; color:var(--text);}
+.ctrl-hint{font-size:.82rem; color:var(--muted); margin-top:.15rem;}
+input[type=range]{width:100%; accent-color:var(--green); height:6px; margin:.25rem 0;}
+input[type=range]:disabled{opacity:.35;}
+.feedback-box{border:1px solid var(--border); border-radius:10px; padding:.8rem 1rem; background:#fff; margin-top:.75rem; min-height:3rem;}
+.feedback-box.correct{border-color:var(--green); background:var(--green-light);}
+.feedback-box.info{border-color:var(--blue); background:var(--blue-light);}
+.feedback-box.warn{border-color:var(--gold); background:var(--gold-light);}
+.feedback-box.bad{border-color:var(--red); background:var(--red-light);}
+.readout{font-family:'Courier New',monospace; font-size:.88rem; color:var(--text); margin-bottom:.4rem;}
+.msg{font-size:.9rem; line-height:1.5;}
+.legend-row{display:flex; gap:1rem; flex-wrap:wrap; margin-top:.5rem; font-size:.88rem; align-items:center;}
+.key{display:flex; align-items:center; gap:.35rem;}
+.sw{width:14px; height:14px; border-radius:50%;}
+.note{border-left:4px solid var(--gold); padding:.5rem .75rem; background:var(--gold-light); border-radius:8px; font-size:.88rem; margin-top:.75rem; line-height:1.5;}
+</style>
+</head>
+<body>
+
+<h1>Interactive Graph Lab 2: Production Possibilities Frontier (PPF)</h1>
+<p class="subtitle">Choose production bundles and see whether they are efficient, inefficient, or infeasible.</p>
+
+<div class="scenario-bar">
+  <span>Scenario:</span>
+  <button class="sc-btn active" onclick="loadScenario(0)">A — Specialization &amp; scarcity</button>
+  <button class="sc-btn" onclick="loadScenario(1)">B — Technology improves Good X</button>
+</div>
+
+<div class="step-card" id="stepCard">
+  <div class="step-label" id="stepLabel">Step 1 of 3</div>
+  <div class="step-title" id="stepTitle"></div>
+  <div class="step-body" id="stepBody"></div>
+  <div class="step-nav">
+    <button class="btn btn-ghost" id="prevBtn" onclick="changeStep(-1)" disabled>← Back</button>
+    <button class="btn" id="nextBtn" onclick="changeStep(1)">Next step →</button>
+    <button class="btn btn-ghost" onclick="resetAll()" style="margin-left:auto;">Reset</button>
+  </div>
+</div>
+
+<div class="panel">
+  <div>
+    <svg id="ppfSvg" viewBox="0 0 620 460" role="img" aria-label="Production possibilities frontier graph">
+      <rect x="0" y="0" width="620" height="460" fill="white"/>
+
+      <!-- shaded zones drawn by JS -->
+      <g id="zoneLayer"></g>
+
+      <!-- grid -->
+      <g id="gridLines" stroke="#eee" stroke-width="1" fill="none"></g>
+
+      <!-- PPF curve -->
+      <path id="ppfPath" d="" stroke="#111" stroke-width="3.5" fill="none"/>
+      <!-- second PPF for scenario 2 -->
+      <path id="ppfPath2" d="" stroke="#555" stroke-width="2" fill="none" stroke-dasharray="8 6" opacity="0"/>
+
+      <!-- reference points (A, B, C, D) -->
+      <g id="refPoints"></g>
+
+      <!-- axes -->
+      <line x1="70" y1="30" x2="70" y2="380" stroke="#111" stroke-width="3"/>
+      <line x1="70" y1="380" x2="580" y2="380" stroke="#111" stroke-width="3"/>
+      <polygon points="70,18 63,38 77,38" fill="#111"/>
+      <polygon points="592,380 572,373 572,387" fill="#111"/>
+
+      <g id="tickLabels" font-size="12" fill="#555" font-family="Georgia,serif"></g>
+
+      <text x="14" y="205" font-size="14" fill="#111" font-family="Georgia,serif" text-anchor="middle" transform="rotate(-90 14 205)">Good Y (units)</text>
+      <text x="325" y="430" font-size="14" fill="#111" font-family="Georgia,serif" text-anchor="middle">Good X (units)</text>
+      <text id="ppfLabel" x="490" y="55" font-size="14" fill="#111" font-family="Georgia,serif" font-weight="700">PPF</text>
+      <text id="ppfLabel2" x="0" y="0" font-size="13" fill="#555" font-family="Georgia,serif" opacity="0">PPF'</text>
+
+      <!-- bundle dot -->
+      <circle id="bundleDot" cx="200" cy="200" r="8" fill="#111" stroke="#fff" stroke-width="2"/>
+      <text id="bundleLabel" x="0" y="0" font-size="12" fill="#111" font-family="Georgia,serif"></text>
+
+      <!-- dashed lines to axes -->
+      <line id="bxLine" x1="0" y1="0" x2="0" y2="380" stroke="#888" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.7"/>
+      <line id="byLine" x1="70" y1="0" x2="0" y2="0" stroke="#888" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.7"/>
+    </svg>
+
+    <div class="legend-row">
+      <div class="key"><div class="sw" style="background:#008345;"></div><span>Efficient (on frontier)</span></div>
+      <div class="key"><div class="sw" style="background:#c8960c;"></div><span>Inefficient (inside frontier)</span></div>
+      <div class="key"><div class="sw" style="background:#c0392b;"></div><span>Infeasible (outside frontier)</span></div>
+    </div>
+
+    <div class="note" id="conceptNote" style="display:none;"></div>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <label class="ctrl-label" for="xSlider">Good X output</label>
+      <input type="range" id="xSlider" min="0" max="100" step="1" value="40" oninput="update()"/>
+      <div class="ctrl-hint">← less X &nbsp;|&nbsp; more X →</div>
+    </div>
+    <div class="ctrl-group">
+      <label class="ctrl-label" for="ySlider">Good Y output</label>
+      <input type="range" id="ySlider" min="0" max="100" step="1" value="60" oninput="update()"/>
+      <div class="ctrl-hint">← less Y &nbsp;|&nbsp; more Y →</div>
+    </div>
+    <div class="ctrl-group" id="growthGroup" style="display:none;">
+      <label class="ctrl-label" for="growthSlider">Technology / Resources shift</label>
+      <input type="range" id="growthSlider" min="0" max="40" step="1" value="0" oninput="update()"/>
+      <div class="ctrl-hint" id="growthHint">Right = outward shift (growth).</div>
+    </div>
+
+    <div class="feedback-box info" id="feedbackBox">
+      <div class="readout" id="readout">X = 40, Y = 60</div>
+      <div class="msg" id="msgText">Choose your production bundle using the sliders.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+// ── Coordinate system ─────────────────────────────────────────────────────
+// Model: X in [0,100], Y in [0,100]
+// Pixel: x from 70..570 (X), y from 30..380 (Y inverted)
+const X0=70, X1=570, Y0=30, Y1=380;
+function xP(X){ return X0 + (X/100)*(X1-X0); }
+function yP(Y){ return Y1 - (Y/100)*(Y1-Y0); }
+function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+
+// ── PPF model ─────────────────────────────────────────────────────────────
+// Base PPF: Y = k * sqrt(1 - (X/Xmax)^2)  (quarter ellipse bowed outward)
+// k=100, Xmax=100 → Y = 100*sqrt(1-(X/100)^2)
+function ppfY(X, kx, ky){
+  // kx = X-axis scale (100 = standard), ky = Y-axis scale (100 = standard)
+  const inside = Math.max(0, 1 - Math.pow(X/kx, 2));
+  return ky * Math.sqrt(inside);
+}
+
+function buildPath(kx, ky){
+  let d='';
+  for(let i=0; i<=100; i+=2){
+    const X=i*(kx/100);
+    if(X>kx) break;
+    const Y=ppfY(X, kx, ky);
+    const px=xP(X*(100/kx)), py=yP(Y*(100/ky));  // normalize back to [0,100] display space
+    d += (i===0 ? `M ${xP(X)} ${yP(Y)}` : ` L ${xP(X)} ${yP(Y)}`);
+  }
+  return d;
+}
+
+// Build path directly in model coords
+function buildPathDirect(kxMax, kxScale, kyMax, kyScale){
+  // kxMax: max X at base, kyMax: max Y at base
+  // kxScale, kyScale: growth multipliers
+  const Xmax = kxMax * kxScale;
+  const Ymax = kyMax * kyScale;
+  let d='';
+  for(let i=0; i<=120; i+=2){
+    const X = i * (Xmax/100);
+    if(X > Xmax+0.5) break;
+    const inside = Math.max(0, 1 - Math.pow(X/Xmax,2));
+    const Y = Ymax * Math.sqrt(inside);
+    if(X<=100 && Y<=100){
+      d += (d==='' ? `M ${xP(X)} ${yP(Y)}` : ` L ${xP(X)} ${yP(Y)}`);
+    }
+  }
+  return d;
+}
+
+// ── Reference points ──────────────────────────────────────────────────────
+// Defined in model X,Y space. Fixed for base PPF (Xmax=100, Ymax=100)
+const refDefs = [
+  { key:'A', X:0,  Y:100, label:'A', desc:'All Y, no X — full specialization in Y' },
+  { key:'B', X:60, Y:80,  label:'B', desc:'Efficient point — on the frontier' },
+  { key:'C', X:40, Y:30,  label:'C', desc:'Inefficient — inside the frontier' },
+  { key:'D', X:100,Y:0,   label:'D', desc:'All X, no Y — full specialization in X' },
+  { key:'E', X:80, Y:70,  label:'E', desc:'Infeasible at base PPF — outside frontier' },
+];
+
+// ── Scenarios ─────────────────────────────────────────────────────────────
+const scenarios = [
+  {
+    name:'A — Specialization & scarcity',
+    steps:[
+      {
+        label:'Step 1 of 3 — The frontier',
+        title:'The PPF shows the limits of production',
+        body:'Every point on the curved line is an efficient combination of Good X and Good Y. Your economy can produce anything on or inside the curve — but nothing outside it (not enough resources). Try moving the X and Y sliders to different positions.',
+        xVal:40, yVal:60,
+        xLock:false, yLock:false, growthShow:false,
+        conceptNote:null,
+        target:null
+      },
+      {
+        label:'Step 2 of 3 — Opportunity cost',
+        title:'More X means less Y (opportunity cost)',
+        body:'Move Good X to 80. Notice that to produce 80 units of X and stay on the frontier, you can only produce about 60 units of Y. The sacrifice of Y is the opportunity cost of X. The cost rises as you specialize — the curve bows outward because of increasing opportunity cost.',
+        xVal:80, yVal:60,
+        xLock:false, yLock:false, growthShow:false,
+        conceptNote:'The bowed-out shape reflects the law of increasing opportunity cost: as you shift more resources to one good, you use resources less suited to producing it, making each additional unit more expensive in terms of the other good sacrificed.',
+        target:{ X:80, key:'on' }
+      },
+      {
+        label:'Step 3 of 3 — Efficiency, inefficiency, infeasibility',
+        title:'Classify three bundles',
+        body:'Try each of these: (1) X=60, Y=80 — on the frontier (efficient). (2) X=40, Y=30 — inside the frontier (inefficient, resources wasted). (3) X=80, Y=70 — outside the frontier (infeasible, not enough resources). Watch how the dot color changes.',
+        xVal:60, yVal:80,
+        xLock:false, yLock:false, growthShow:false,
+        conceptNote:'Inefficiency means the economy is not using all its resources or not using them in the best way. Infeasibility means the bundle is impossible with current resources and technology.',
+        target:null
+      }
+    ]
+  },
+  {
+    name:'B — Technology improves Good X',
+    steps:[
+      {
+        label:'Step 1 of 3 — Starting position',
+        title:'The economy starts on the original PPF',
+        body:'Set X to 50 and Y to 86 — a point on the original frontier. This is our baseline before any technological change.',
+        xVal:50, yVal:86,
+        xLock:false, yLock:false, growthShow:false,
+        conceptNote:null,
+        target:{ X:50, key:'on' }
+      },
+      {
+        label:'Step 2 of 3 — Technology improves X production',
+        title:'A breakthrough improves Good X productivity',
+        body:'New technology makes workers and machines more productive specifically for Good X. The PPF pivots outward on the X axis — you can now produce more X without sacrificing Y. Use the technology slider to shift the frontier. Notice the curve pivots, not a parallel shift.',
+        xVal:50, yVal:86,
+        xLock:false, yLock:false, growthShow:true,
+        conceptNote:'A productivity improvement in one good causes a non-parallel (pivoting) outward shift of the PPF. The maximum Y stays the same (Y production technology unchanged) but the maximum X increases.',
+        target:null
+      },
+      {
+        label:'Step 3 of 3 — Exploit the new frontier',
+        title:'Move to a bundle that was previously infeasible',
+        body:'With the technology slider shifted, try X=80, Y=60. This was infeasible before — the old frontier could not reach it. Now it is on or inside the new frontier. This is what economic growth looks like on the PPF.',
+        xVal:80, yVal:60,
+        xLock:false, yLock:false, growthShow:true,
+        conceptNote:'Economic growth expands the production possibility set. Bundles that were previously infeasible become attainable. Growth comes from more resources, better technology, or improved institutions.',
+        target:null
+      }
+    ]
+  }
+];
+
+// ── State ─────────────────────────────────────────────────────────────────
+let scenIdx=0, stepIdx=0;
+const xSlider=document.getElementById('xSlider');
+const ySlider=document.getElementById('ySlider');
+const growthSlider=document.getElementById('growthSlider');
+const readout=document.getElementById('readout');
+const msgText=document.getElementById('msgText');
+const feedbackBox=document.getElementById('feedbackBox');
+const stepLabel=document.getElementById('stepLabel');
+const stepTitle=document.getElementById('stepTitle');
+const stepBody=document.getElementById('stepBody');
+const conceptNote=document.getElementById('conceptNote');
+const prevBtn=document.getElementById('prevBtn');
+const nextBtn=document.getElementById('nextBtn');
+const growthGroup=document.getElementById('growthGroup');
+
+const svg=document.getElementById('ppfSvg');
+const ppfPath=document.getElementById('ppfPath');
+const ppfPath2=document.getElementById('ppfPath2');
+const ppfLabel=document.getElementById('ppfLabel');
+const ppfLabel2=document.getElementById('ppfLabel2');
+const bundleDot=document.getElementById('bundleDot');
+const bundleLabel=document.getElementById('bundleLabel');
+const bxLine=document.getElementById('bxLine');
+const byLine=document.getElementById('byLine');
+const refPoints=document.getElementById('refPoints');
+const zoneLayer=document.getElementById('zoneLayer');
+const gridLines=document.getElementById('gridLines');
+const tickLabels=document.getElementById('tickLabels');
+
+// ── Draw axes ─────────────────────────────────────────────────────────────
+function drawAxes(){
+  let g='', t='';
+  [0,20,40,60,80,100].forEach(v=>{
+    const x=xP(v), y=yP(v);
+    g+=`<line x1="${x}" y1="${Y0}" x2="${x}" y2="${Y1}"/>`;
+    g+=`<line x1="${X0}" y1="${y}" x2="${X1}" y2="${y}"/>`;
+    t+=`<text x="${x}" y="${Y1+16}" text-anchor="middle">${v}</text>`;
+    t+=`<text x="${X0-8}" y="${y+4}" text-anchor="end">${v}</text>`;
+  });
+  gridLines.innerHTML=g;
+  tickLabels.innerHTML=t;
+}
+
+// ── Draw filled zones under PPF ───────────────────────────────────────────
+function drawZones(Xmax, Ymax){
+  // Draw the PPF area fill (feasible region) with a very light tint
+  let pts=`${xP(0)} ${yP(0)}`;
+  for(let xi=0; xi<=Xmax+0.5; xi+=2){
+    const yi=Ymax*Math.sqrt(Math.max(0,1-Math.pow(xi/Xmax,2)));
+    if(xi<=100 && yi<=100) pts+=` ${xP(xi)} ${yP(yi)}`;
+  }
+  pts+=` ${xP(Math.min(Xmax,100))} ${yP(0)}`;
+  zoneLayer.innerHTML=`<polygon points="${pts}" fill="#f0f7f3" opacity="0.6"/>`;
+}
+
+// ── Draw reference points ─────────────────────────────────────────────────
+function drawRefPoints(Xmax, Ymax){
+  // Only show points relevant to current scenario step
+  const sc=scenarios[scenIdx];
+  const step=sc.steps[stepIdx];
+  const showKeys = scenIdx===0 ? ['A','B','C','D','E'] : ['A','B','D'];
+  let html='';
+  const colors={A:'#008345',B:'#008345',C:'#c8960c',D:'#008345',E:'#c0392b'};
+  refDefs.filter(r=>showKeys.includes(r.key)).forEach(r=>{
+    // Check if this point is on/in/out of BASE PPF (Xmax=100,Ymax=100 for key A-E)
+    const yFrontier=100*Math.sqrt(Math.max(0,1-Math.pow(r.X/100,2)));
+    const status=Math.abs(r.Y-yFrontier)<5 ? 'on' : r.Y < yFrontier ? 'in' : 'out';
+    const col=status==='on'?'#008345':status==='in'?'#c8960c':'#c0392b';
+    html+=`<circle cx="${xP(r.X)}" cy="${yP(r.Y)}" r="6" fill="${col}" fill-opacity="0.2" stroke="${col}" stroke-width="2"/>`;
+    html+=`<text x="${xP(r.X)+9}" y="${yP(r.Y)-8}" font-size="13" fill="${col}" font-family="Georgia,serif" font-weight="700" opacity="0.85">${r.key}</text>`;
+  });
+  refPoints.innerHTML=html;
+}
+
+// ── Main update ───────────────────────────────────────────────────────────
+function update(){
+  const Xval=parseFloat(xSlider.value);
+  const Yval=parseFloat(ySlider.value);
+  const g=parseFloat(growthSlider.value);
+
+  // Base PPF: Xmax=100, Ymax=100
+  // Scenario 2 shifts: X max grows, Y max stays
+  const XmaxNew=100 + g*0.5;
+  const YmaxNew=100;
+
+  // Build base PPF path
+  let d='';
+  for(let xi=0; xi<=100; xi+=2){
+    const yi=100*Math.sqrt(Math.max(0,1-Math.pow(xi/100,2)));
+    d += (xi===0 ? `M ${xP(xi)} ${yP(yi)}` : ` L ${xP(xi)} ${yP(yi)}`);
+  }
+  ppfPath.setAttribute('d',d);
+
+  // Build shifted PPF
+  if(g>2){
+    let d2='';
+    for(let xi=0; xi<=XmaxNew; xi+=2){
+      const yi=YmaxNew*Math.sqrt(Math.max(0,1-Math.pow(xi/XmaxNew,2)));
+      if(xi<=100 && yi<=100) d2 += (d2==='' ? `M ${xP(xi)} ${yP(yi)}` : ` L ${xP(xi)} ${yP(yi)}`);
+    }
+    ppfPath2.setAttribute('d',d2);
+    ppfPath2.setAttribute('opacity','0.8');
+    ppfLabel2.setAttribute('x',xP(XmaxNew-5<100?XmaxNew-5:95));
+    ppfLabel2.setAttribute('y',yP(YmaxNew*Math.sqrt(Math.max(0,1-Math.pow((XmaxNew-5)/XmaxNew,2)))-8));
+    ppfLabel2.setAttribute('opacity','1');
+    drawZones(XmaxNew,YmaxNew);
+  } else {
+    ppfPath2.setAttribute('opacity','0');
+    ppfLabel2.setAttribute('opacity','0');
+    drawZones(100,100);
+  }
+
+  // Determine effective frontier Y at chosen X
+  const effXmax = g>2 ? XmaxNew : 100;
+  const yFrontier=100*Math.sqrt(Math.max(0,1-Math.pow(Xval/100,2)));
+  const yFrontierNew=YmaxNew*Math.sqrt(Math.max(0,1-Math.pow(Xval/effXmax,2)));
+
+  const tol=5;
+  const onBase=Math.abs(Yval-yFrontier)<=tol;
+  const belowBase=Yval < yFrontier-tol;
+  const aboveBase=Yval > yFrontier+tol;
+  const onNew=g>2 && Math.abs(Yval-yFrontierNew)<=tol;
+  const belowNew=g>2 && Yval < yFrontierNew-tol;
+  const aboveNew=g>2 && Yval > yFrontierNew+tol && Yval > yFrontier+tol;
+
+  // Bundle dot color
+  let dotColor='#111', statusText='', fbClass='info';
+  if(g>2){
+    if(Yval > yFrontierNew+tol){ dotColor='#c0392b'; statusText='Infeasible (outside new PPF)'; fbClass='bad'; }
+    else if(Math.abs(Yval-yFrontierNew)<=tol){ dotColor='#008345'; statusText='Efficient — on the new frontier (PPF\')'; fbClass='correct'; }
+    else if(Yval < yFrontierNew-tol && Yval > yFrontier+tol){ dotColor='#1a5cb5'; statusText='Newly feasible — was outside old PPF, now inside new PPF\''; fbClass='info'; }
+    else if(Math.abs(Yval-yFrontier)<=tol){ dotColor='#c8960c'; statusText='On old frontier — inefficient relative to new PPF\''; fbClass='warn'; }
+    else if(belowBase){ dotColor='#c8960c'; statusText='Inefficient (inside both frontiers)'; fbClass='warn'; }
+    else { dotColor='#008345'; statusText='Efficient on original frontier'; fbClass='correct'; }
+  } else {
+    if(aboveBase){ dotColor='#c0392b'; statusText='Infeasible — outside the frontier'; fbClass='bad'; }
+    else if(onBase){ dotColor='#008345'; statusText='Efficient — on the frontier'; fbClass='correct'; }
+    else { dotColor='#c8960c'; statusText='Inefficient — inside the frontier (resources not fully used)'; fbClass='warn'; }
+  }
+
+  bundleDot.setAttribute('cx',xP(Xval));
+  bundleDot.setAttribute('cy',yP(Yval));
+  bundleDot.setAttribute('fill',dotColor);
+  bundleLabel.setAttribute('x',xP(Xval)+11);
+  bundleLabel.setAttribute('y',yP(Yval)-10);
+  bundleLabel.setAttribute('fill',dotColor);
+  bundleLabel.textContent=`(${Xval}, ${Yval})`;
+
+  bxLine.setAttribute('x1',xP(Xval)); bxLine.setAttribute('x2',xP(Xval));
+  bxLine.setAttribute('y1',yP(Yval)); bxLine.setAttribute('y2',Y1);
+  byLine.setAttribute('x1',X0); byLine.setAttribute('x2',xP(Xval));
+  byLine.setAttribute('y1',yP(Yval)); byLine.setAttribute('y2',yP(Yval));
+
+  // Opportunity cost: slope at Xval on base PPF
+  const h=1;
+  const y1oc=100*Math.sqrt(Math.max(0,1-Math.pow(Math.min(100,Xval+h)/100,2)));
+  const y0oc=100*Math.sqrt(Math.max(0,1-Math.pow(Math.max(0,Xval-h)/100,2)));
+  const slope=(y1oc-y0oc)/(2*h);
+  const oppCost=(-slope).toFixed(2);
+
+  readout.textContent=`X = ${Xval}, Y = ${Yval}  |  Y on frontier at X=${Xval}: ${yFrontier.toFixed(1)}`;
+
+  feedbackBox.className=`feedback-box ${fbClass}`;
+  msgText.innerHTML=`<strong>${statusText}</strong><br/>Opportunity cost of 1 more unit of X at this point: ≈ ${oppCost} units of Y`;
+
+  drawRefPoints(100,100);
+}
+
+// ── Step + scenario navigation ────────────────────────────────────────────
+function loadStep(){
+  const sc=scenarios[scenIdx];
+  const step=sc.steps[stepIdx];
+
+  stepLabel.textContent=step.label;
+  stepTitle.textContent=step.title;
+  stepBody.textContent=step.body;
+
+  prevBtn.disabled=stepIdx===0;
+  nextBtn.textContent=stepIdx===sc.steps.length-1 ? 'Restart ↺' : 'Next step →';
+
+  xSlider.disabled=step.xLock||false;
+  ySlider.disabled=step.yLock||false;
+  if(step.xVal!==null) xSlider.value=step.xVal;
+  if(step.yVal!==null) ySlider.value=step.yVal;
+
+  growthGroup.style.display=step.growthShow ? 'block' : 'none';
+  if(!step.growthShow) growthSlider.value=0;
+
+  if(step.conceptNote){
+    conceptNote.textContent=step.conceptNote;
+    conceptNote.style.display='block';
+  } else {
+    conceptNote.style.display='none';
+  }
+
+  update();
+}
+
+window.changeStep=function(dir){
+  const sc=scenarios[scenIdx];
+  if(dir===1 && stepIdx===sc.steps.length-1){ resetAll(); return; }
+  stepIdx=clamp(stepIdx+dir,0,sc.steps.length-1);
+  loadStep();
+};
+
+window.loadScenario=function(idx){
+  scenIdx=idx; stepIdx=0;
+  document.querySelectorAll('.sc-btn').forEach((b,i)=>b.classList.toggle('active',i===idx));
+  growthSlider.value=0;
+  loadStep();
+};
+
+window.resetAll=function(){
+  stepIdx=0;
+  growthSlider.value=0;
+  loadStep();
+};
+
+drawAxes();
+loadStep();
+})();
+</script>
+
+<p style="font-size:.82rem; color:#888; margin-top:1rem; border-top:1px solid #eee; padding-top:.75rem;">
+If interactivity does not work inside Canvas, host this HTML file externally and embed using an iframe in a Canvas Page.
+</p>
+</body>
+</html>

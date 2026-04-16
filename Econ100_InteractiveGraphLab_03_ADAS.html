@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Interactive Graph Lab 3: AD–AS Model</title>
+<style>
+:root{
+  --green:#008345;
+  --green-light:#e6f4ed;
+  --gold:#c8960c;
+  --gold-light:#fdf6e3;
+  --red:#c0392b;
+  --red-light:#fdf0ee;
+  --blue:#1a5cb5;
+  --blue-light:#eaf0fb;
+  --border:#d0d7de;
+  --card:#f6f8fa;
+  --text:#1a1a1a;
+  --muted:#555;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{font-family:'Georgia',serif; background:#fafafa; color:var(--text); max-width:960px; margin:0 auto; padding:1.25rem;}
+h1{font-size:1.55rem; font-weight:700; margin-bottom:.25rem; color:var(--green);}
+.subtitle{font-size:.95rem; color:var(--muted); margin-bottom:1rem;}
+.scenario-bar{display:flex; gap:.5rem; margin-bottom:1rem; flex-wrap:wrap; align-items:center;}
+.scenario-bar span{font-weight:700; font-size:.9rem; color:var(--muted);}
+.sc-btn{border:2px solid var(--border); border-radius:8px; padding:.4rem .9rem; background:#fff; cursor:pointer; font-size:.9rem; font-family:inherit; transition:all .15s;}
+.sc-btn.active{border-color:var(--green); background:var(--green-light); color:var(--green); font-weight:700;}
+.sc-btn:hover{border-color:var(--green);}
+.step-card{border:1px solid var(--border); border-left:5px solid var(--green); border-radius:10px; background:#fff; padding:1rem 1.1rem; margin-bottom:1rem;}
+.step-label{font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--green); margin-bottom:.3rem;}
+.step-title{font-size:1.05rem; font-weight:700; margin-bottom:.3rem;}
+.step-body{font-size:.93rem; color:var(--muted); line-height:1.55;}
+.step-nav{display:flex; gap:.6rem; margin-top:.75rem; align-items:center;}
+.btn{border:2px solid var(--green); border-radius:8px; padding:.4rem .9rem; background:var(--green); color:#fff; cursor:pointer; font-size:.9rem; font-family:inherit; font-weight:700; transition:all .15s;}
+.btn:hover{background:#006835;}
+.btn-ghost{background:#fff; color:var(--green);}
+.btn-ghost:hover{background:var(--green-light);}
+.btn:disabled{opacity:.4; cursor:not-allowed;}
+.panel{display:grid; grid-template-columns:1fr; gap:1rem;}
+@media(min-width:820px){.panel{grid-template-columns:1.3fr .7fr; align-items:start;}}
+svg{width:100%; height:auto; background:#fff; border:1px solid var(--border); border-radius:12px; display:block;}
+.controls{border:1px solid var(--border); border-radius:12px; padding:1rem; background:#fff;}
+.ctrl-group{margin-bottom:1rem;}
+.ctrl-label{display:block; font-size:.88rem; font-weight:700; margin-bottom:.3rem; color:var(--text);}
+.ctrl-hint{font-size:.82rem; color:var(--muted); margin-top:.15rem;}
+input[type=range]{width:100%; accent-color:var(--green); height:6px; margin:.25rem 0;}
+input[type=range]:disabled{opacity:.35;}
+.feedback-box{border:1px solid var(--border); border-radius:10px; padding:.8rem 1rem; background:#fff; margin-top:.75rem; min-height:3rem;}
+.feedback-box.correct{border-color:var(--green); background:var(--green-light);}
+.feedback-box.info{border-color:var(--blue); background:var(--blue-light);}
+.feedback-box.warn{border-color:var(--gold); background:var(--gold-light);}
+.feedback-box.bad{border-color:var(--red); background:var(--red-light);}
+.readout{font-family:'Courier New',monospace; font-size:.88rem; color:var(--text); margin-bottom:.4rem;}
+.msg{font-size:.9rem; line-height:1.5;}
+.legend-row{display:flex; gap:.75rem; flex-wrap:wrap; margin-top:.5rem; font-size:.83rem; align-items:center;}
+.key{display:flex; align-items:center; gap:.3rem;}
+.sw-line{width:22px; height:4px; border-radius:2px;}
+.ref-legend{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.5rem; font-size:.8rem;}
+.ref-key{display:flex; align-items:center; gap:.3rem; border:1px solid var(--border); border-radius:6px; padding:.2rem .5rem; background:#f6f8fa;}
+.ref-dot{width:10px; height:10px; border-radius:50%;}
+.note{border-left:4px solid var(--gold); padding:.5rem .75rem; background:var(--gold-light); border-radius:8px; font-size:.88rem; margin-top:.75rem; line-height:1.5;}
+</style>
+</head>
+<body>
+
+<h1>Interactive Graph Lab 3: AD–AS Model</h1>
+<p class="subtitle">Trace how the economy responds to demand and supply shocks in the short run and long run.</p>
+
+<div class="scenario-bar">
+  <span>Scenario:</span>
+  <button class="sc-btn active" onclick="loadScenario(0)">A — Input costs rise (supply shock)</button>
+  <button class="sc-btn" onclick="loadScenario(1)">B — Government spending rises (demand shock)</button>
+</div>
+
+<div class="step-card">
+  <div class="step-label" id="stepLabel">Step 1 of 4</div>
+  <div class="step-title" id="stepTitle"></div>
+  <div class="step-body" id="stepBody"></div>
+  <div class="step-nav">
+    <button class="btn btn-ghost" id="prevBtn" onclick="changeStep(-1)" disabled>← Back</button>
+    <button class="btn" id="nextBtn" onclick="changeStep(1)">Next step →</button>
+    <button class="btn btn-ghost" onclick="resetAll()" style="margin-left:auto;">Reset</button>
+  </div>
+</div>
+
+<div class="panel">
+  <div>
+    <svg id="adasSvg" viewBox="0 0 640 460" role="img" aria-label="AD-AS graph">
+      <rect x="0" y="0" width="640" height="460" fill="white"/>
+
+      <!-- Grid -->
+      <g id="gridLines" stroke="#f0f0f0" stroke-width="1" fill="none"></g>
+
+      <!-- Background ghost curves (reference diagram) -->
+      <g id="bgLayer" opacity="0.15" stroke="#333" stroke-width="2" fill="none"></g>
+
+      <!-- Background reference points A–F -->
+      <g id="bgPoints"></g>
+
+      <!-- LRAS line (fixed) -->
+      <line id="lrasLine" x1="0" y1="0" x2="0" y2="0" stroke="#333" stroke-width="2.5" stroke-dasharray="9 6"/>
+      <text id="lrasLabel" x="0" y="0" font-size="13" fill="#333" font-family="Georgia,serif" font-weight="700">LRAS</text>
+
+      <!-- Live AD curve -->
+      <path id="adCurve" d="" stroke="#1a5cb5" stroke-width="3.5" fill="none"/>
+
+      <!-- Live SRAS curve -->
+      <path id="srasCurve" d="" stroke="#c0392b" stroke-width="3.5" fill="none" stroke-dasharray="10 7"/>
+
+      <!-- Equilibrium dashed lines -->
+      <line id="eqVLine" x1="0" y1="0" x2="0" y2="0" stroke="#888" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.6"/>
+      <line id="eqHLine" x1="70" y1="0" x2="0" y2="0" stroke="#888" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.6"/>
+
+      <!-- Axes -->
+      <line x1="70" y1="30" x2="70" y2="380" stroke="#111" stroke-width="3"/>
+      <line x1="70" y1="380" x2="590" y2="380" stroke="#111" stroke-width="3"/>
+      <polygon points="70,18 63,38 77,38" fill="#111"/>
+      <polygon points="602,380 582,373 582,387" fill="#111"/>
+
+      <g id="tickLabels" font-size="12" fill="#555" font-family="Georgia,serif"></g>
+      <text x="14" y="205" font-size="14" fill="#111" font-family="Georgia,serif" text-anchor="middle" transform="rotate(-90 14 205)">Price Level (P)</text>
+      <text x="330" y="430" font-size="14" fill="#111" font-family="Georgia,serif" text-anchor="middle">Real GDP (Y)</text>
+
+      <!-- Curve labels (live) -->
+      <text id="adLabel" x="0" y="0" font-size="14" fill="#1a5cb5" font-family="Georgia,serif" font-weight="700">AD</text>
+      <text id="srasLabel" x="0" y="0" font-size="14" fill="#c0392b" font-family="Georgia,serif" font-weight="700">SRAS</text>
+
+      <!-- Live equilibrium point -->
+      <circle id="eqDot" cx="0" cy="0" r="7" fill="#111" stroke="#fff" stroke-width="2"/>
+      <text id="eqText" x="0" y="0" font-size="12" fill="#111" font-family="Georgia,serif"></text>
+    </svg>
+
+    <div class="legend-row">
+      <div class="key"><div class="sw-line" style="background:#1a5cb5;"></div>AD (live)</div>
+      <div class="key"><div class="sw-line" style="background:#c0392b; background:repeating-linear-gradient(90deg,#c0392b 0 10px,transparent 10px 17px);"></div>SRAS (live)</div>
+      <div class="key"><div class="sw-line" style="background:#333; background:repeating-linear-gradient(90deg,#333 0 9px,transparent 9px 15px);"></div>LRAS (potential output)</div>
+    </div>
+
+    <div class="ref-legend" id="refLegend"></div>
+    <div class="note" id="conceptNote" style="display:none;"></div>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <label class="ctrl-label" for="adSlider">AD shifter (spending / demand)</label>
+      <input type="range" id="adSlider" min="-35" max="35" step="1" value="0" oninput="update()"/>
+      <div class="ctrl-hint">← lower AD &nbsp;|&nbsp; higher AD →</div>
+    </div>
+    <div class="ctrl-group">
+      <label class="ctrl-label" for="srasSlider">SRAS shifter (costs / productivity)</label>
+      <input type="range" id="srasSlider" min="-35" max="35" step="1" value="0" oninput="update()"/>
+      <div class="ctrl-hint">← negative shock (costs ↑) &nbsp;|&nbsp; positive shock →</div>
+    </div>
+
+    <div class="feedback-box info" id="feedbackBox">
+      <div class="readout" id="readout">Output = — &nbsp;|&nbsp; Price level = —</div>
+      <div class="msg" id="msgText">Adjust sliders to begin the scenario.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+// ── Coordinate system ─────────────────────────────────────────────────────
+// Model: Output Y in [0,100], Price P in [0,100]
+// Pixel: x from 70..580 (Y), y from 30..380 (P inverted)
+const X0=70, X1=580, Y0=30, Y1=380;
+function xP(Y){ return X0 + (Y/100)*(X1-X0); }
+function yP(P){ return Y1 - (P/100)*(Y1-Y0); }
+function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+
+// ── Baseline curve params ─────────────────────────────────────────────────
+// AD: P = a - b*Y  (downward sloping)
+// SRAS: P = c + d*Y (upward sloping)
+// Baseline eq at Y=55, P=50:
+// 50 = a - b*55  and  50 = c + d*55
+// Let bAD=0.5: a = 50 + 0.5*55 = 77.5
+// Let bSRAS=0.4: c = 50 - 0.4*55 = 28
+const bAD=0.5, bSRAS=0.4;
+const aAD0=77.5, cSRAS0=28;
+
+// LRAS at Y=55 (potential output)
+const Ypot=55;
+
+function solveEq(aAD, cSRAS){
+  // aAD - bAD*Y = cSRAS + bSRAS*Y
+  const Y=(aAD-cSRAS)/(bAD+bSRAS);
+  const P=cSRAS+bSRAS*Y;
+  return { Y:clamp(Y,0,100), P:clamp(P,0,100) };
+}
+
+// ── Reference points A–F matching textbook diagram ────────────────────────
+// A = long-run eq: AD1 ∩ SRAS1 ∩ LRAS  (Ypot, baseline P)
+// B = AD2 ∩ SRAS1  (AD shifts right, above LRAS)
+// C = AD2 ∩ SRAS2 ∩ LRAS  (SRAS adjusts down after demand boom → new LR eq)
+// D = AD1 ∩ SRAS2  (below LRAS — recession with lower SRAS)
+// E = SRAS3 ∩ LRAS  (SRAS shifts left → stagflation, LRAS intersection at higher P)
+// F = AD0 ∩ SRAS1   (AD shifts left — recession below A)
+
+// Shifted curve intercepts for background ghosts
+const aAD2=aAD0+20;    // AD shifts right
+const aAD0b=aAD0-18;   // AD shifts left
+const cSRAS2=cSRAS0-12; // SRAS shifts right (costs drop)
+const cSRAS3=cSRAS0+18; // SRAS shifts left (costs rise)
+
+const ptA=solveEq(aAD0, cSRAS0);   // baseline
+const ptB=solveEq(aAD2, cSRAS0);   // AD right, SRAS baseline
+const ptC=solveEq(aAD2, cSRAS2);   // AD right, SRAS right (LR adj)
+const ptD=solveEq(aAD0, cSRAS3);   // SRAS left, AD baseline — supply shock eq
+const ptE=solveEq(aAD0b,cSRAS0);   // AD left — demand recession
+const ptF={ Y:Ypot, P: cSRAS3+bSRAS*Ypot }; // SRAS3 intersects LRAS
+
+const refDefs={
+  A:{ pt:ptA, color:'#333',    label:'A', desc:'Long-run equilibrium (Y*, baseline)' },
+  B:{ pt:ptB, color:'#1a5cb5', label:'B', desc:'After AD increases — boom' },
+  C:{ pt:ptC, color:'#008345', label:'C', desc:'Long-run after AD boom (SRAS adjusts)' },
+  D:{ pt:ptD, color:'#c0392b', label:'D', desc:'After negative supply shock — stagflation' },
+  E:{ pt:ptE, color:'#888',    label:'E', desc:'After AD decreases — recession' },
+  F:{ pt:ptF, color:'#c0392b', label:'F', desc:'LRAS intersection after supply shock' },
+};
+
+// ── Scenarios ─────────────────────────────────────────────────────────────
+const scenarios = [
+  {
+    name:'A — Input costs rise (supply shock)',
+    steps:[
+      {
+        label:'Step 1 of 4 — Starting at long-run equilibrium',
+        title:'The economy begins at long-run equilibrium (Point A)',
+        body:'Output equals potential output (Y*) and the price level is stable. This is where AD, SRAS, and LRAS all intersect. Notice reference point A in the background.',
+        adVal:0, srasVal:0, adLock:true, srasLock:true,
+        showRefs:['A','D','F'],
+        conceptNote:null,
+        target:'A'
+      },
+      {
+        label:'Step 2 of 4 — Input costs rise',
+        title:'Scenario: Input costs rise for all producers',
+        body:'Energy prices, wages, and raw material costs increase. This makes production more expensive at every output level. SRAS shifts left. Move the SRAS slider to the left and observe what happens to output and the price level.',
+        adVal:0, srasVal:null, adLock:true, srasLock:false,
+        showRefs:['A','D','F'],
+        conceptNote:'A rise in input costs shifts SRAS left — less is supplied at every price. This is a negative supply shock. The result is stagflation: higher prices AND lower output simultaneously. Reference point D shows this new short-run equilibrium.',
+        target:'D'
+      },
+      {
+        label:'Step 3 of 4 — The economy is at point D (stagflation)',
+        title:'Short-run result: Higher prices, lower output',
+        body:'The economy is now below potential output (to the left of LRAS). This is a recessionary gap with inflation — the definition of stagflation. The price level rose but output and employment fell.',
+        adVal:0, srasVal:null, adLock:true, srasLock:false,
+        showRefs:['A','D','F'],
+        conceptNote:'Stagflation (stagnant growth + inflation) is the result of a leftward SRAS shift. It is especially difficult for policymakers because fixing output (by boosting AD) would worsen inflation, and fixing inflation (by reducing AD) would worsen the recession.',
+        target:'D'
+      },
+      {
+        label:'Step 4 of 4 — Long-run self-correction',
+        title:'Over time, the economy self-corrects back toward A',
+        body:'With output below potential, there is unemployment and downward pressure on wages. Eventually, input costs fall (workers accept lower wages, energy prices normalize). This shifts SRAS back right, toward A. Move the SRAS slider right to model the recovery.',
+        adVal:0, srasVal:null, adLock:true, srasLock:false,
+        showRefs:['A','D','F'],
+        conceptNote:'The long-run self-correction mechanism: a recessionary gap creates unemployment, which lowers wages over time, which reduces costs, which shifts SRAS right until the economy returns to Y*. This is why economists say the long-run AS is vertical at potential output.',
+        target:'A'
+      }
+    ]
+  },
+  {
+    name:'B — Government spending rises (demand shock)',
+    steps:[
+      {
+        label:'Step 1 of 4 — Starting at long-run equilibrium',
+        title:'The economy begins at long-run equilibrium (Point A)',
+        body:'Output equals potential output (Y*). AD and SRAS intersect at A, which also sits on the LRAS line. The price level is stable.',
+        adVal:0, srasVal:0, adLock:true, srasLock:true,
+        showRefs:['A','B','C','E'],
+        conceptNote:null,
+        target:'A'
+      },
+      {
+        label:'Step 2 of 4 — Government spending rises',
+        title:'Scenario: Government increases spending (fiscal stimulus)',
+        body:'Congress passes a stimulus package that significantly increases G. This increases total spending in the economy — AD shifts right. Move the AD slider to the right and observe the new short-run equilibrium.',
+        adVal:null, srasVal:0, adLock:false, srasLock:true,
+        showRefs:['A','B','C','E'],
+        conceptNote:'An increase in government spending (G) is a demand-side expansion. AD = C + I + G + NX, so more G shifts the entire AD curve right. In the short run, output rises above potential (Y > Y*) and the price level rises. Reference point B shows this boom equilibrium.',
+        target:'B'
+      },
+      {
+        label:'Step 3 of 4 — Inflationary gap',
+        title:'Short-run: Output above Y*, prices rising (inflationary gap)',
+        body:'The economy is now to the right of LRAS — an inflationary gap. Unemployment is below the natural rate. Firms are bidding up wages and resources. This cannot last in the long run.',
+        adVal:null, srasVal:0, adLock:false, srasLock:true,
+        showRefs:['A','B','C','E'],
+        conceptNote:'An inflationary gap means the economy is overheating. Output (Y) is above potential (Y*). With tight labor markets, wages rise, which increases production costs.',
+        target:'B'
+      },
+      {
+        label:'Step 4 of 4 — Long-run adjustment (SRAS shifts left)',
+        title:'Rising costs shift SRAS left — economy returns to Y*',
+        body:'As wages and input costs rise due to tight labor markets, SRAS shifts left. The economy moves from B toward C — output falls back to Y*, but the price level is now permanently higher. Move the SRAS slider left to model this long-run adjustment.',
+        adVal:null, srasVal:null, adLock:false, srasLock:false,
+        showRefs:['A','B','C','E'],
+        conceptNote:'The long-run result of a demand expansion is a higher price level but no permanent increase in output. The economy returns to Y* (C) at a higher price. This is why many economists argue that demand stimulus only raises output temporarily — in the long run it mostly raises prices.',
+        target:'C'
+      }
+    ]
+  }
+];
+
+// ── State ─────────────────────────────────────────────────────────────────
+let scenIdx=0, stepIdx=0;
+const adSlider=document.getElementById('adSlider');
+const srasSlider=document.getElementById('srasSlider');
+const readout=document.getElementById('readout');
+const msgText=document.getElementById('msgText');
+const feedbackBox=document.getElementById('feedbackBox');
+const stepLabel=document.getElementById('stepLabel');
+const stepTitle=document.getElementById('stepTitle');
+const stepBody=document.getElementById('stepBody');
+const conceptNote=document.getElementById('conceptNote');
+const prevBtn=document.getElementById('prevBtn');
+const nextBtn=document.getElementById('nextBtn');
+
+const svg=document.getElementById('adasSvg');
+const adCurve=document.getElementById('adCurve');
+const srasCurve=document.getElementById('srasCurve');
+const eqDot=document.getElementById('eqDot');
+const eqText=document.getElementById('eqText');
+const eqVLine=document.getElementById('eqVLine');
+const eqHLine=document.getElementById('eqHLine');
+const adLabel=document.getElementById('adLabel');
+const srasLabel=document.getElementById('srasLabel');
+const lrasLine=document.getElementById('lrasLine');
+const lrasLabel=document.getElementById('lrasLabel');
+const bgLayer=document.getElementById('bgLayer');
+const bgPoints=document.getElementById('bgPoints');
+const gridLines=document.getElementById('gridLines');
+const tickLabels=document.getElementById('tickLabels');
+const refLegend=document.getElementById('refLegend');
+
+// ── Draw axes ─────────────────────────────────────────────────────────────
+function drawAxes(){
+  let g='',t='';
+  [0,20,40,60,80,100].forEach(v=>{
+    const x=xP(v),y=yP(v);
+    g+=`<line x1="${x}" y1="${Y0}" x2="${x}" y2="${Y1}"/>`;
+    g+=`<line x1="${X0}" y1="${y}" x2="${X1}" y2="${y}"/>`;
+    t+=`<text x="${x}" y="${Y1+16}" text-anchor="middle">${v}</text>`;
+    t+=`<text x="${X0-6}" y="${y+4}" text-anchor="end">${v}</text>`;
+  });
+  gridLines.innerHTML=g;
+  tickLabels.innerHTML=t;
+  // LRAS
+  lrasLine.setAttribute('x1',xP(Ypot)); lrasLine.setAttribute('x2',xP(Ypot));
+  lrasLine.setAttribute('y1',Y0); lrasLine.setAttribute('y2',Y1);
+  lrasLabel.setAttribute('x',xP(Ypot)+5); lrasLabel.setAttribute('y',Y0+12);
+}
+
+// ── Draw background ghost curves ──────────────────────────────────────────
+function drawBgCurves(showRefs){
+  // Draw all reference AD and SRAS curves lightly
+  let html='';
+  // AD curves: baseline, shifted right, shifted left
+  const ads=[
+    {a:aAD0, lbl:'AD₁'},
+    {a:aAD2, lbl:'AD₂'},
+    {a:aAD0b, lbl:'AD₀'},
+  ];
+  const srass=[
+    {c:cSRAS0,  lbl:'SRAS₁'},
+    {c:cSRAS2,  lbl:'SRAS₂'},
+    {c:cSRAS3,  lbl:'SRAS₃'},
+  ];
+
+  ads.forEach(({a,lbl})=>{
+    const p0=a-bAD*0, p100=a-bAD*100;
+    html+=`<path d="M ${xP(0)} ${yP(p0)} L ${xP(100)} ${yP(p100)}" stroke="#1a5cb5" stroke-dasharray="5 5"/>`;
+    const labelY=clamp(a-bAD*88,5,95);
+    html+=`<text x="${xP(88)}" y="${yP(labelY)+4}" font-size="11" fill="#1a5cb5" font-family="Georgia,serif" opacity="0.6">${lbl}</text>`;
+  });
+  srass.forEach(({c,lbl})=>{
+    const p0=c+bSRAS*0, p100=c+bSRAS*100;
+    html+=`<path d="M ${xP(0)} ${yP(p0)} L ${xP(100)} ${yP(p100)}" stroke="#c0392b" stroke-dasharray="5 5"/>`;
+    const labelY=clamp(c+bSRAS*88,5,95);
+    html+=`<text x="${xP(88)}" y="${yP(labelY)-5}" font-size="11" fill="#c0392b" font-family="Georgia,serif" opacity="0.6">${lbl}</text>`;
+  });
+  bgLayer.innerHTML=html;
+
+  // Reference points
+  let pts='', leg='';
+  showRefs.forEach(k=>{
+    const d=refDefs[k];
+    const x=xP(d.pt.Y), y=yP(d.pt.P);
+    pts+=`<circle cx="${x}" cy="${y}" r="8" fill="${d.color}" fill-opacity="0.2" stroke="${d.color}" stroke-width="2.5"/>`;
+    pts+=`<text x="${x+11}" y="${y-10}" font-size="14" fill="${d.color}" font-family="Georgia,serif" font-weight="700" opacity="0.9">${k}</text>`;
+    leg+=`<div class="ref-key"><div class="ref-dot" style="background:${d.color};"></div><strong>${k}</strong>: ${d.desc} (Y=${d.pt.Y.toFixed(0)}, P=${d.pt.P.toFixed(0)})</div>`;
+  });
+  bgPoints.innerHTML=pts;
+  refLegend.innerHTML=leg;
+}
+
+// ── Main update ───────────────────────────────────────────────────────────
+function update(){
+  const adS=parseFloat(adSlider.value);
+  const srasS=parseFloat(srasSlider.value);
+
+  const aAD=aAD0+adS;
+  const cSRAS=cSRAS0-srasS; // right = more supply = lower cost intercept
+
+  // AD curve
+  const adp0=aAD-bAD*0, adp100=aAD-bAD*100;
+  adCurve.setAttribute('d',`M ${xP(0)} ${yP(adp0)} L ${xP(100)} ${yP(adp100)}`);
+  adLabel.setAttribute('x',xP(82));
+  adLabel.setAttribute('y',yP(aAD-bAD*82)+18);
+
+  // SRAS curve
+  const srasp0=cSRAS+bSRAS*0, srasp100=cSRAS+bSRAS*100;
+  srasCurve.setAttribute('d',`M ${xP(0)} ${yP(srasp0)} L ${xP(100)} ${yP(srasp100)}`);
+  srasLabel.setAttribute('x',xP(75));
+  srasLabel.setAttribute('y',yP(cSRAS+bSRAS*75)-8);
+
+  // Equilibrium
+  const eq=solveEq(aAD,cSRAS);
+  const ex=xP(eq.Y), ey=yP(eq.P);
+  eqDot.setAttribute('cx',ex); eqDot.setAttribute('cy',ey);
+  eqText.setAttribute('x',ex+10); eqText.setAttribute('y',ey-10);
+  eqText.textContent=`Y=${eq.Y.toFixed(0)}, P=${eq.P.toFixed(0)}`;
+
+  eqVLine.setAttribute('x1',ex); eqVLine.setAttribute('x2',ex);
+  eqVLine.setAttribute('y1',ey); eqVLine.setAttribute('y2',Y1);
+  eqHLine.setAttribute('x1',X0); eqHLine.setAttribute('x2',ex);
+  eqHLine.setAttribute('y1',ey); eqHLine.setAttribute('y2',ey);
+
+  readout.textContent=`Output (Y) = ${eq.Y.toFixed(1)}  |  Price level (P) = ${eq.P.toFixed(1)}  |  Y* = ${Ypot}`;
+
+  // Gap analysis
+  const gap=eq.Y - Ypot;
+  let gapText='';
+  if(Math.abs(gap)<3) gapText='At potential output (Y ≈ Y*) — long-run equilibrium.';
+  else if(gap>3) gapText=`Inflationary gap: Y > Y* by ${gap.toFixed(1)} units. Economy is above potential.`;
+  else gapText=`Recessionary gap: Y < Y* by ${Math.abs(gap).toFixed(1)} units. Economy is below potential.`;
+
+  // Feedback per step
+  const step=scenarios[scenIdx].steps[stepIdx];
+  giveFeedback(eq, step, adS, srasS, gapText);
+}
+
+function giveFeedback(eq, step, adS, srasS, gapText){
+  const atStart=(Math.abs(adS)<3 && Math.abs(srasS)<3);
+
+  if(stepIdx===0){
+    feedbackBox.className='feedback-box info';
+    msgText.innerHTML=`<strong>Starting at point A (long-run equilibrium)</strong><br/>${gapText}`;
+    return;
+  }
+
+  if(atStart && stepIdx>0){
+    feedbackBox.className='feedback-box warn';
+    msgText.textContent='Move the appropriate slider to begin this step.';
+    return;
+  }
+
+  // Gap description drives color
+  let fbClass='info';
+  if(Math.abs(eq.Y-Ypot)<4) fbClass='correct';
+  else if(eq.Y > Ypot+4) fbClass='warn'; // inflationary
+  else fbClass='bad'; // recessionary
+
+  // Scenario-specific guidance
+  let msg=gapText;
+  if(scenIdx===0){
+    if(stepIdx===1||stepIdx===2){
+      if(srasS < -15){
+        msg=`SRAS shifted left — stagflation. Y=${eq.Y.toFixed(0)} (below Y*=${Ypot}), P=${eq.P.toFixed(0)} (higher). You are near reference point D. ${gapText}`;
+        fbClass='bad';
+      } else {
+        msg='Move the SRAS slider further left to model the increase in input costs.';
+        fbClass='info';
+      }
+    } else if(stepIdx===3){
+      if(srasS > -5){
+        msg=`SRAS recovering. Y=${eq.Y.toFixed(0)}, P=${eq.P.toFixed(0)}. ${gapText} The economy is moving back toward A.`;
+        fbClass=Math.abs(eq.Y-Ypot)<4?'correct':'info';
+      } else {
+        msg=`SRAS still shifted left (costs still high). Y=${eq.Y.toFixed(0)}, P=${eq.P.toFixed(0)}. Move SRAS slider right to model the long-run recovery.`;
+        fbClass='bad';
+      }
+    }
+  } else if(scenIdx===1){
+    if(stepIdx===1||stepIdx===2){
+      if(adS > 15){
+        msg=`AD shifted right — boom. Y=${eq.Y.toFixed(0)} (above Y*=${Ypot}), P=${eq.P.toFixed(0)} (higher). You are near reference point B. ${gapText}`;
+        fbClass='warn';
+      } else {
+        msg='Move the AD slider further right to model the increase in government spending.';
+        fbClass='info';
+      }
+    } else if(stepIdx===3){
+      if(adS > 15 && srasS < -10){
+        msg=`AD is up and SRAS is shifting left (costs rising). Y=${eq.Y.toFixed(0)}, P=${eq.P.toFixed(0)}. ${gapText} You are near point C — the new long-run equilibrium: same Y* but permanently higher price level.`;
+        fbClass=Math.abs(eq.Y-Ypot)<4?'correct':'info';
+      } else if(adS > 15){
+        msg=`AD is shifted right. Now move SRAS left to model rising wages and costs pulling the economy back to Y*.`;
+        fbClass='info';
+      } else {
+        msg='First shift AD right (step 2), then shift SRAS left here to show the long-run adjustment.';
+        fbClass='info';
+      }
+    }
+  }
+
+  feedbackBox.className=`feedback-box ${fbClass}`;
+  msgText.innerHTML=msg;
+}
+
+// ── Step + scenario navigation ────────────────────────────────────────────
+function loadStep(){
+  const sc=scenarios[scenIdx];
+  const step=sc.steps[stepIdx];
+
+  stepLabel.textContent=step.label;
+  stepTitle.textContent=step.title;
+  stepBody.textContent=step.body;
+
+  prevBtn.disabled=stepIdx===0;
+  nextBtn.textContent=stepIdx===sc.steps.length-1 ? 'Restart ↺' : 'Next step →';
+
+  adSlider.disabled=step.adLock;
+  srasSlider.disabled=step.srasLock;
+
+  if(step.adVal!==null) adSlider.value=step.adVal;
+  if(step.srasVal!==null) srasSlider.value=step.srasVal;
+
+  drawBgCurves(step.showRefs);
+
+  if(step.conceptNote){
+    conceptNote.textContent=step.conceptNote;
+    conceptNote.style.display='block';
+  } else {
+    conceptNote.style.display='none';
+  }
+
+  update();
+}
+
+window.changeStep=function(dir){
+  const sc=scenarios[scenIdx];
+  if(dir===1 && stepIdx===sc.steps.length-1){ resetAll(); return; }
+  stepIdx=clamp(stepIdx+dir,0,sc.steps.length-1);
+  loadStep();
+};
+
+window.loadScenario=function(idx){
+  scenIdx=idx; stepIdx=0;
+  document.querySelectorAll('.sc-btn').forEach((b,i)=>b.classList.toggle('active',i===idx));
+  adSlider.value=0; srasSlider.value=0;
+  loadStep();
+};
+
+window.resetAll=function(){
+  stepIdx=0; adSlider.value=0; srasSlider.value=0;
+  loadStep();
+};
+
+drawAxes();
+loadStep();
+})();
+</script>
+
+<p style="font-size:.82rem; color:#888; margin-top:1rem; border-top:1px solid #eee; padding-top:.75rem;">
+If interactivity does not work inside Canvas, host this HTML file externally and embed using an iframe in a Canvas Page.
+</p>
+</body>
+</html>
