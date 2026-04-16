@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Interactive Graph Lab 2: Production Possibilities Frontier (PPF)</title>
+
+<style>
+  :root{
+    --chc-green:#008345;
+    --dark-gray:#415364;
+    --border:#d0d7de;
+    --bg:#ffffff;
+    --card:#f6f8fa;
+    --focus:#0b57d0;
+  }
+  body{font-family: Arial, Helvetica, sans-serif; line-height:1.5; color:#111; max-width:900px; margin:0 auto; padding:1.25rem; background:var(--bg);}
+  h1{font-size:1.65rem; margin:0 0 .75rem 0;}
+  h2{font-size:1.25rem; margin-top:1.5rem; border-top:1px solid var(--border); padding-top:1rem;}
+  h3{font-size:1.05rem; margin-top:1rem;}
+  p{margin:.5rem 0;}
+  .card{border:1px solid var(--border); border-left:6px solid var(--chc-green); background:var(--card); border-radius:14px; padding:1rem 1rem; margin:1rem 0;}
+  .badge-wrap{display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.25rem;}
+  .badge{display:inline-block; border:1px solid var(--border); border-radius:999px; padding:.15rem .6rem; background:#fff; font-size:.9rem;}
+  .toc ul{margin:.25rem 0 .25rem 1.25rem;}
+  .toc a{color:var(--focus); text-decoration:underline;}
+  .note{border-left:4px solid var(--dark-gray); padding:.5rem .75rem; background:#f2f4f7; border-radius:10px;}
+  .panel{display:grid; grid-template-columns: 1fr; gap:1rem;}
+  @media(min-width:860px){ .panel{grid-template-columns: 1.15fr .85fr; align-items:start;} }
+  .controls{border:1px solid var(--border); border-radius:14px; padding:1rem; background:#fff;}
+  label{display:block; margin:.75rem 0 .2rem 0; font-weight:600;}
+  input[type="range"]{width:100%;}
+  .readout{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace; font-size:.95rem;}
+  button{border:1px solid var(--border); border-radius:12px; padding:.55rem .8rem; background:#fff; cursor:pointer; font-weight:700;}
+  button:focus, input:focus{outline:3px solid #b6d4fe; outline-offset:2px;}
+  .feedback{margin-top:.75rem; border:1px solid var(--border); border-radius:12px; padding:.75rem; background:#fff;}
+  .sr-only{position:absolute; left:-10000px; top:auto; width:1px; height:1px; overflow:hidden;}
+  svg{width:100%; height:auto; background:#fff; border:1px solid var(--border); border-radius:14px;}
+  .legend{display:flex; gap:1rem; flex-wrap:wrap; margin-top:.5rem;}
+  .key{display:flex; align-items:center; gap:.4rem; font-size:.95rem;}
+  .swatch{width:18px; height:4px; background:#111;}
+  .dash{background: repeating-linear-gradient(90deg,#111 0 8px, transparent 8px 14px);}
+  .small{font-size:.95rem; color:#333;}
+</style>
+
+</head>
+<body>
+<h1>Interactive Graph Lab 2: Production Possibilities Frontier (PPF)</h1>
+
+<div class="card" aria-label="Overview">
+  <h2 style="margin-top:0; border-top:none; padding-top:0;">Overview</h2>
+  <p>Choose an output level for Good X and watch the frontier point update. Then shift resources/technology to see the PPF move. Use the opportunity cost readout to connect the picture to the concept.</p>
+</div>
+
+<div class="card" aria-label="Key terms">
+  <h2 style="margin-top:0; border-top:none; padding-top:0;">Key terms</h2>
+  <div class="badge-wrap"><span class="badge">PPF</span>
+<span class="badge">scarcity</span>
+<span class="badge">efficiency</span>
+<span class="badge">feasible vs infeasible</span>
+<span class="badge">opportunity cost</span>
+<span class="badge">economic growth</span></div>
+  <p class="small">Tip: Move one slider at a time, narrate what changed, then describe whether you see a movement along a curve or a shift of a curve.</p>
+</div>
+
+<div class="card toc" aria-label="On this page">
+  <h2 style="margin-top:0; border-top:none; padding-top:0;">On this page</h2>
+  <ul><li><a href="#widget">Interactive widget</a></li>
+<li><a href="#answers">Answers and coaching</a></li></ul>
+</div>
+
+
+<h2 id="widget">Interactive widget</h2>
+
+<div class="panel">
+  <div>
+    <svg id="ppfSvg" role="img" aria-label="Production possibilities frontier with a point you can move." viewBox="0 0 640 420">
+      <rect x="0" y="0" width="640" height="420" fill="white"></rect>
+
+      <!-- axes -->
+      <line x1="90" y1="60" x2="90" y2="340" stroke="#111" stroke-width="4"></line>
+      <line x1="90" y1="340" x2="590" y2="340" stroke="#111" stroke-width="4"></line>
+      <polygon points="90,45 80,70 100,70" fill="#111"></polygon>
+      <polygon points="605,340 580,330 580,350" fill="#111"></polygon>
+
+      <text x="22" y="72" font-size="18" fill="#111" transform="rotate(-90 22,72)">Good Y</text>
+      <text x="455" y="400" font-size="18" fill="#111">Good X</text>
+
+      <!-- PPF curve -->
+      <path id="ppfCurve" d="" stroke="#111" stroke-width="4" fill="none"></path>
+
+      <!-- point -->
+      <circle id="bundle" cx="0" cy="0" r="7" fill="#111"></circle>
+      <text id="bundleLabel" x="0" y="0" font-size="14">Bundle</text>
+
+      <!-- reference lines -->
+      <line id="xLine" x1="0" y1="0" x2="0" y2="340" stroke="#111" stroke-width="2" stroke-dasharray="8 6" opacity="0.65"></line>
+      <line id="yLine" x1="90" y1="0" x2="0" y2="0" stroke="#111" stroke-width="2" stroke-dasharray="8 6" opacity="0.65"></line>
+    </svg>
+
+    <div class="note" style="margin-top:1rem;">
+      <p><strong>How to interpret the curve:</strong> Points on the curve are efficient. Points inside are inefficient. Points outside are not feasible with current resources and technology.</p>
+    </div>
+  </div>
+
+  <div class="controls" aria-label="Controls">
+    <h3 style="margin-top:0;">Controls</h3>
+
+    <label for="growth">Resources/technology (PPF shift)</label>
+    <input id="growth" type="range" min="-20" max="40" step="1" value="0">
+    <div class="small">Right = outward shift (growth). Left = inward shift (loss).</div>
+
+    <label for="xChoice">Choose Good X output</label>
+    <input id="xChoice" type="range" min="0" max="100" step="1" value="40">
+
+    <div class="feedback" aria-live="polite">
+      <div class="readout" id="ppfReadout"></div>
+      <div class="small" id="ppfStatus"></div>
+    </div>
+
+    <h3>Self-check</h3>
+    <p class="small">Move Good X to the right. Does the opportunity cost (the sacrifice of Good Y) rise as you specialize? Use the readout to support your answer.</p>
+  </div>
+</div>
+
+<h2 id="answers">Answers and coaching</h2>
+<div class="card">
+  <ul>
+    <li>If the curve is bowed outward, opportunity cost typically increases as you produce more of one good.</li>
+    <li>Outward shifts represent growth (more resources or better technology).</li>
+    <li>Trade does not change the production frontier itself, but it can let consumption exceed the PPF through specialization and exchange.</li>
+  </ul>
+</div>
+
+<script>
+(function(){
+  const svg = document.getElementById('ppfSvg');
+  const curve = document.getElementById('ppfCurve');
+  const bundle = document.getElementById('bundle');
+  const bundleLabel = document.getElementById('bundleLabel');
+  const xLine = document.getElementById('xLine');
+  const yLine = document.getElementById('yLine');
+
+  const growth = document.getElementById('growth');
+  const xChoice = document.getElementById('xChoice');
+  const readout = document.getElementById('ppfReadout');
+  const status = document.getElementById('ppfStatus');
+
+  // Model space: X and Y in [0,100]. PPF function: Y = k * sqrt(100 - X)
+  // Growth shifts k up/down.
+  function xPix(X){ return 90 + (X/100)*500; }
+  function yPix(Y){ return 340 - (Y/100)*280; }
+
+  function ppfY(X, k){
+    const inside = Math.max(0, 100 - X);
+    return k * Math.sqrt(inside);
+  }
+
+  function buildCurve(k){
+    // sample points
+    let d = "";
+    for(let i=0;i<=100;i+=2){
+      const X = i;
+      const Y = ppfY(X, k);
+      const px = xPix(X), py = yPix(Y);
+      d += (i===0 ? `M ${px} ${py}` : ` L ${px} ${py}`);
+    }
+    return d;
+  }
+
+  function update(){
+    const g = parseFloat(growth.value);
+    // base k: scale so that at X=0, Y=100 when g=0
+    // when X=0: Y = k*sqrt(100)=10k => set k=10
+    const k = 10 + (g/10); // gentle shifts
+
+    curve.setAttribute("d", buildCurve(k));
+
+    const X = parseFloat(xChoice.value);
+    const Yfrontier = ppfY(X, k);
+    // Put bundle on frontier for chosen X (efficiency focus)
+    const bx = xPix(X), by = yPix(Yfrontier);
+    bundle.setAttribute("cx", bx);
+    bundle.setAttribute("cy", by);
+    bundleLabel.setAttribute("x", bx + 10);
+    bundleLabel.setAttribute("y", by - 10);
+
+    xLine.setAttribute("x1", bx);
+    xLine.setAttribute("x2", bx);
+    xLine.setAttribute("y1", by);
+    xLine.setAttribute("y2", 340);
+
+    yLine.setAttribute("x1", 90);
+    yLine.setAttribute("x2", bx);
+    yLine.setAttribute("y1", by);
+    yLine.setAttribute("y2", by);
+
+    // Approx slope via finite difference around X
+    const h = 1;
+    const Y1 = ppfY(Math.min(100, X+h), k);
+    const Y0 = ppfY(Math.max(0, X-h), k);
+    const slope = (Y1 - Y0) / (2*h); // dY/dX
+    const oppCost = -slope; // units of Y per 1 unit X (positive number)
+    readout.textContent = `On the frontier: X = ${X.toFixed(0)}, Y ≈ ${Yfrontier.toFixed(1)}  |  Opportunity cost of 1 more X here ≈ ${oppCost.toFixed(2)} units of Y`;
+
+    if(g >= 10){
+      status.textContent = "PPF shifted outward (growth): more can be produced with available resources and technology.";
+    }else if(g <= -10){
+      status.textContent = "PPF shifted inward (loss): fewer resources or worse productivity reduce production possibilities.";
+    }else{
+      status.textContent = "PPF near baseline (no major shift).";
+    }
+  }
+
+  growth.addEventListener('input', update);
+  xChoice.addEventListener('input', update);
+  update();
+})();
+</script>
+
+
+<p class="small note">If interactivity does not work inside your Canvas Page, your Canvas instance may strip scripts. In that case, host this file (OneDrive/Google Drive publish, district web space, or GitHub Pages) and embed it in Canvas using an iframe on an approved domain.</p>
+</body>
+</html>
